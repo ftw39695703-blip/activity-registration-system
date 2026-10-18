@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>福委會活動報名</title>
+<style>
+  :root {
+    --green: #06c755;
+    --green-dark: #04a344;
+    --green-soft: #e8f8ee;
+    --text: #1f2328;
+    --muted: #5f6b76;
+    --line: #e3e7eb;
+    --bg: #f4f6f8;
+    --card: #ffffff;
+    --danger: #c62828;
+    --danger-soft: #fdecea;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  #app {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 16px 16px calc(32px + env(safe-area-inset-bottom));
+  }
+  h1, h2 { margin: 0; line-height: 1.35; }
+  h1 { font-size: 22px; }
+  h2 { font-size: 20px; }
+  p { margin: 0; }
+
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .06);
+    margin-bottom: 16px;
+  }
+  .center { text-align: center; }
+  .muted { color: var(--muted); }
+  .page-title { margin: 4px 0 16px; }
+
+  /* 活動資訊 */
+  .eyebrow { color: var(--green-dark); font-size: 13px; font-weight: 600; letter-spacing: .05em; }
+  .event h1 { margin: 2px 0 12px; }
+  .meta { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 0; font-size: 15px; }
+  .meta dt { color: var(--muted); }
+  .meta dd { margin: 0; word-break: break-word; }
+  .divider { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
+
+  /* 表單 */
+  .field { display: block; margin-bottom: 16px; }
+  .label { display: block; font-weight: 600; font-size: 15px; margin-bottom: 6px; }
+  input, select {
+    width: 100%;
+    font: inherit;
+    font-size: 16px; /* 避免 iOS 自動放大 */
+    color: var(--text);
+    background: #fff;
+    border: 1px solid #cfd6dc;
+    border-radius: 10px;
+    padding: 12px 14px;
+    min-height: 48px;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  select {
+    background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+    background-position: calc(100% - 20px) 21px, calc(100% - 15px) 21px;
+    background-size: 5px 5px;
+    background-repeat: no-repeat;
+    padding-right: 36px;
+  }
+  input:focus, select:focus { outline: 2px solid var(--green); outline-offset: 1px; border-color: var(--green); }
+  .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .choice {
+    font: inherit;
+    font-weight: 600;
+    min-height: 52px;
+    border-radius: 10px;
+    border: 2px solid #cfd6dc;
+    background: #fff;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .choice[aria-pressed="true"] { border-color: var(--green); background: var(--green-soft); color: var(--green-dark); }
+
+  .btn {
+    display: block;
+    width: 100%;
+    font: inherit;
+    font-weight: 700;
+    font-size: 17px;
+    min-height: 52px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--green);
+    color: #fff;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+  .btn:active { background: var(--green-dark); }
+  .btn:disabled { opacity: .55; cursor: default; }
+  .btn-ghost { background: transparent; color: var(--danger); border: 1px solid #e6b8b8; font-weight: 600; font-size: 16px; }
+  .btn-ghost:active { background: var(--danger-soft); }
+
+  .error { background: var(--danger-soft); color: var(--danger); border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; font-size: 15px; }
+  .banner { background: var(--green-soft); color: var(--green-dark); font-weight: 700; border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; text-align: center; }
+
+  /* 報到碼 */
+  .qr-wrap { text-align: center; margin: 18px 0 4px; }
+  .qr { display: inline-block; background: #fff; padding: 14px; border-radius: 12px; border: 1px solid var(--line); }
+  .qr img, .qr canvas { display: block; width: 220px; height: 220px; }
+  .ticket-id { font: 600 20px/1.4 ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: .12em; margin-top: 8px; }
+  .badge { display: inline-block; background: var(--green-soft); color: var(--green-dark); font-weight: 700; border-radius: 999px; padding: 4px 14px; margin-top: 6px; }
+  .hint { color: var(--muted); font-size: 14px; margin-top: 14px; }
+
+  /* 載入中 */
+  .loading { padding-top: 30vh; }
+  .spinner { width: 36px; height: 36px; margin: 0 auto 12px; border: 3px solid var(--line); border-top-color: var(--green); border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .message { margin-top: 18vh; }
+  .message p { margin-top: 10px; }
+</style>
+</head>
+<body>
+<main id="app" aria-live="polite"></main>
+
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+// ===== 設定區（部署前填好這兩項）=====
+const CONFIG = {
+  LIFF_ID: '2012073957-8sDedmQq',
+  API_URL: 'https://script.google.com/macros/s/AKfycbzqqM0Cw6uvVfNhoV-QqonSxBiZtS7AsQ8wnrdJDmjtbscg_4LSo7mSjcsJS-McAKpG/exec',
+};
+
+const MEALS = [
+  { value: '葷', label: '葷食' },
+  { value: '素', label: '素食' },
+];
+const RETRYABLE = ['NETWORK', 'SERVER', 'BUSY'];
+
+const app = document.getElementById('app');
+const params = new URLSearchParams(location.search);
+
+// ===== 畫面工具 =====
+function h(tag, props, ...children) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (v == null || v === false) continue;
+    if (k === 'class') el.className = v;
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const c of children.flat(Infinity)) {
+    if (c == null || c === false || c === '') continue;
+    el.append(c instanceof Node ? c : String(c));
+  }
+  return el;
+}
+
+function render(...nodes) {
+  app.replaceChildren(...nodes.flat().filter(Boolean));
+  window.scrollTo(0, 0);
+}
+
+function showLoading(text) {
+  render(h('div', { class: 'loading center' }, h('div', { class: 'spinner' }), h('p', { class: 'muted' }, text || '載入中…')));
+}
+
+function showMessage(title, body, action) {
+  render(h('section', { class: 'card center message' },
+    h('h2', null, title),
+    body && h('p', { class: 'muted' }, body),
+    action && h('button', { class: 'btn', onclick: action.onClick }, action.label)));
+}
+
+function showError(err, retry) {
+  const canRetry = retry && RETRYABLE.includes(err.code);
+  showMessage('無法完成', err.message || '系統忙碌中，請稍後再試',
+    canRetry && { label: '重新整理', onClick: retry });
+}
+
+// ===== 呼叫後端 =====
+class ApiError extends Error {
+  constructor(code, message) {
+    super(message);
+    this.code = code;
+  }
+}
+
+async function api(action, payload) {
+  let res;
+  try {
+    // 用 text/plain 避免瀏覽器送出 CORS 預檢請求（Apps Script 不支援）
+    res = await fetch(CONFIG.API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(Object.assign({ action, idToken: liff.getIDToken() }, payload)),
+    });
+  } catch (e) {
+    throw new ApiError('NETWORK', '網路連線失敗，請確認網路後再試');
+  }
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (e) {
+    throw new ApiError('SERVER', '系統暫時無法回應，請稍後再試');
+  }
+
+  if (!data.ok) {
+    if (data.code === 'AUTH') return relogin();
+    throw new ApiError(data.code, data.message);
+  }
+  sessionSet('relogin', '');
+  return data;
+}
+
+// 登入過期：LINE 外的瀏覽器重新登入一次；LINE 內請使用者重新開啟
+function relogin() {
+  if (!liff.isInClient() && sessionGet('relogin') !== '1') {
+    sessionSet('relogin', '1');
+    liff.logout();
+    liff.login({ redirectUri: location.href });
+    return new Promise(() => {}); // 等待頁面跳轉
+  }
+  throw new ApiError('AUTH', '登入已過期，請關閉此頁面後重新開啟');
+}
+
+function sessionGet(k) {
+  try { return sessionStorage.getItem(k); } catch (e) { return null; }
+}
+function sessionSet(k, v) {
+  try { v ? sessionStorage.setItem(k, v) : sessionStorage.removeItem(k); } catch (e) { /* 無痕模式等情況忽略 */ }
+}
+
+// ===== 共用元件 =====
+function eventHeader(ev) {
+  return h('header', { class: 'event' },
+    h('p', { class: 'eyebrow' }, '福委會活動'),
+    h('h1', null, ev.name),
+    h('dl', { class: 'meta' },
+      ev.date && [h('dt', null, '日期'), h('dd', null, ev.date)],
+      ev.place && [h('dt', null, '地點'), h('dd', null, ev.place)],
+      ev.deadline && [h('dt', null, '報名截止'), h('dd', null, ev.deadline)]));
+}
+
+function field(label, control) {
+  return h('label', { class: 'field' }, h('span', { class: 'label' }, label), control);
+}
+
+// ===== 活動報名頁 =====
+async function loadEvent(eventId) {
+  showLoading();
+  try {
+    const d = await api('init', { eventId });
+    if (d.registration) return renderTicketPage(d.event, d.registration, false);
+    if (d.event.canRegister) return renderForm(d.event, d.units);
+    showMessage('報名已截止', `「${d.event.name}」已截止報名，如有疑問請聯絡福委會。`);
+  } catch (err) {
+    showError(err, () => loadEvent(eventId));
+  }
+}
+
+function renderForm(ev, units) {
+  let meal = '';
+
+  const unitSel = h('select', { name: 'unit' },
+    h('option', { value: '' }, '請選擇單位'),
+    units.map(u => h('option', { value: u }, u)));
+  const empInput = h('input', { name: 'empId', autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false', placeholder: '請輸入工號' });
+  const nameInput = h('input', { name: 'name', autocomplete: 'name', placeholder: '請輸入姓名（全名）' });
+  const mealBtns = MEALS.map(m => h('button', {
+    type: 'button',
+    class: 'choice',
+    'aria-pressed': 'false',
+    onclick: () => {
+      meal = m.value;
+      mealBtns.forEach((b, i) => b.setAttribute('aria-pressed', String(MEALS[i].value === meal)));
+    },
+  }, m.label));
+
+  const errBox = h('p', { class: 'error', role: 'alert', hidden: true });
+  const submit = h('button', { type: 'submit', class: 'btn' }, '送出報名');
+
+  const showFormError = msg => {
+    errBox.textContent = msg;
+    errBox.hidden = false;
+    errBox.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  };
+
+  const onSubmit = async e => {
+    e.preventDefault();
+    const data = { unit: unitSel.value, empId: empInput.value.trim(), name: nameInput.value.trim(), meal };
+    const missing = !data.unit ? '請選擇單位'
+      : !data.empId ? '請輸入工號'
+      : !data.name ? '請輸入姓名'
+      : !data.meal ? '請選擇葷食或素食'
+      : '';
+    if (missing) return showFormError(missing);
+
+    errBox.hidden = true;
+    submit.disabled = true;
+    submit.textContent = '送出中…';
+    try {
+      const d = await api('register', Object.assign({ eventId: ev.id }, data));
+      renderTicketPage(d.event, d.registration, true);
+    } catch (err) {
+      if (err.code === 'DUP_USER') return loadEvent(ev.id);
+      if (err.code === 'CLOSED' || err.code === 'NO_EVENT') return showMessage('無法報名', err.message);
+      showFormError(err.message || '系統忙碌中，請稍後再試');
+      submit.disabled = false;
+      submit.textContent = '送出報名';
+    }
+  };
+
+  render(h('form', { class: 'card', novalidate: true, onsubmit: onSubmit },
+    eventHeader(ev),
+    h('hr', { class: 'divider' }),
+    field('單位', unitSel),
+    field('工號', empInput),
+    field('姓名', nameInput),
+    h('div', { class: 'field' },
+      h('span', { class: 'label', id: 'meal-label' }, '餐點'),
+      h('div', { class: 'choices', role: 'group', 'aria-labelledby': 'meal-label' }, mealBtns)),
+    errBox,
+    submit));
+}
+
+// ===== 報到碼 =====
+function renderTicketPage(ev, reg, justRegistered) {
+  render(
+    justRegistered && h('div', { class: 'banner', role: 'status' }, '✅ 報名成功！'),
+    ticketCard(ev, reg, () => loadEvent(ev.id)),
+    h('p', { class: 'hint center' }, '之後可隨時從官方 LINE 選單「我的報到碼」再次開啟。'));
+}
+
+function ticketCard(ev, reg, afterCancel) {
+  const qrBox = h('div', { class: 'qr', role: 'img', 'aria-label': `報到 QR Code，編號 ${reg.ticketId}` });
+  new QRCode(qrBox, { text: reg.ticketId, width: 440, height: 440, correctLevel: QRCode.CorrectLevel.M });
+
+  let footer = null;
+  if (!reg.checkedIn && ev.canCancel) {
+    footer = h('button', { class: 'btn btn-ghost', onclick: e => cancelRegistration(ev, e.currentTarget, afterCancel) }, '取消報名');
+  } else if (!reg.checkedIn) {
+    footer = h('p', { class: 'hint' }, '已過報名截止時間，如需取消請聯絡福委會。');
+  }
+
+  return h('section', { class: 'card' },
+    eventHeader(ev),
+    h('div', { class: 'qr-wrap' },
+      qrBox,
+      h('p', { class: 'ticket-id' }, reg.ticketId),
+      reg.checkedIn && h('span', { class: 'badge' }, '已完成報到')),
+    h('hr', { class: 'divider' }),
+    h('dl', { class: 'meta' },
+      h('dt', null, '姓名'), h('dd', null, reg.name),
+      h('dt', null, '單位'), h('dd', null, reg.unit),
+      h('dt', null, '工號'), h('dd', null, reg.empId),
+      h('dt', null, '餐點'), h('dd', null, reg.meal === '素' ? '素食' : '葷食')),
+    !reg.checkedIn && h('p', { class: 'hint' }, '報到時請將螢幕亮度調高，出示此 QR Code 給工作人員掃描。'),
+    footer);
+}
+
+async function cancelRegistration(ev, btn, afterCancel) {
+  if (!confirm(`確定要取消「${ev.name}」的報名嗎？\n取消後此 QR Code 會失效；截止前仍可重新報名。`)) return;
+  btn.disabled = true;
+  btn.textContent = '取消中…';
+  try {
+    await api('cancel', { eventId: ev.id });
+    alert('已取消報名');
+    afterCancel();
+  } catch (err) {
+    alert(err.message || '取消失敗，請稍後再試');
+    btn.disabled = false;
+    btn.textContent = '取消報名';
+  }
+}
+
+// ===== 我的報到碼 =====
+async function loadTickets() {
+  showLoading();
+  try {
+    const d = await api('tickets');
+    if (!d.tickets.length) {
+      return showMessage('目前沒有報名中的活動', '收到福委會的活動通知後，點通知中的報名連結即可報名。');
+    }
+    render(
+      h('h1', { class: 'page-title' }, '我的報到碼'),
+      d.tickets.map(t => ticketCard(t.event, t.registration, loadTickets)));
+  } catch (err) {
+    showError(err, loadTickets);
+  }
+}
+
+// ===== 進入點 =====
+async function main() {
+  showLoading();
+  try {
+    await liff.init({ liffId: CONFIG.LIFF_ID });
+  } catch (e) {
+    return showMessage('無法開啟頁面', '請從福委會官方 LINE 的連結開啟此頁面。');
+  }
+  // 從 liff.line.me 開啟時，LIFF 會再轉址一次並帶上真正的網址參數
+  if (params.has('liff.state')) return;
+  if (!liff.isLoggedIn()) {
+    liff.login({ redirectUri: location.href });
+    return;
+  }
+  const eventId = params.get('event');
+  if (eventId) loadEvent(eventId);
+  else loadTickets();
+}
+
+if (typeof liff === 'undefined' || typeof QRCode === 'undefined') {
+  showMessage('頁面載入失敗', '請確認網路連線後重新開啟。');
+} else {
+  main();
+}
+</script>
+</body>
+</html>

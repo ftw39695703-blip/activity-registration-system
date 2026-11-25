@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light">
-<title>福委會活動報名</title>
+<title>福委會活動報名 Event Registration</title>
 <style>
   :root {
     --green: #06c755;
@@ -36,6 +36,11 @@
   h1 { font-size: 22px; }
   h2 { font-size: 20px; }
   p { margin: 0; }
+
+  /* 中英並列：英文用較小、較淡的字，顏色跟著所在的元素 */
+  .en { font-size: .82em; font-weight: 400; opacity: .75; }
+  .en-block { display: block; }
+  .en-inline { margin-left: .4em; }
 
   .card {
     background: var(--card);
@@ -84,6 +89,8 @@
   .choice {
     font: inherit;
     font-weight: 600;
+    line-height: 1.3;
+    padding: 6px 8px;
     min-height: 52px;
     border-radius: 10px;
     border: 2px solid #cfd6dc;
@@ -99,6 +106,8 @@
     font: inherit;
     font-weight: 700;
     font-size: 17px;
+    line-height: 1.3;
+    padding: 8px 12px;
     min-height: 52px;
     border: 0;
     border-radius: 12px;
@@ -143,9 +152,86 @@ const CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbzqqM0Cw6uvVfNhoV-QqonSxBiZtS7AsQ8wnrdJDmjtbscg_4LSo7mSjcsJS-McAKpG/exec',
 };
 
+// ===== 中英文字 =====
+// 固定介面中英並列；活動名稱、地點、單位照試算表的內容顯示
+const T = {
+  loading: ['載入中…', 'Loading…'],
+  busy: ['系統忙碌中，請稍後再試', 'The system is busy. Please try again later.'],
+  failed: ['無法完成', 'Something went wrong'],
+  reload: ['重新整理', 'Reload'],
+  eyebrow: ['福委會活動', 'Welfare Committee Event'],
+  date: ['日期', 'Date'],
+  place: ['地點', 'Location'],
+  deadline: ['報名截止', 'Deadline'],
+  unit: ['單位', 'Department'],
+  empId: ['工號', 'Employee ID'],
+  name: ['姓名', 'Name'],
+  meal: ['餐點', 'Meal'],
+  selectUnit: ['請選擇單位', 'Select department'],
+  empIdHint: ['請輸入工號', 'Employee ID'],
+  nameHint: ['請輸入姓名（全名）', 'Full name'],
+  needUnit: ['請選擇單位', 'Please select your department.'],
+  needEmpId: ['請輸入工號', 'Please enter your employee ID.'],
+  needName: ['請輸入姓名', 'Please enter your name.'],
+  needMeal: ['請選擇葷食或素食', 'Please choose non-vegetarian or vegetarian.'],
+  submit: ['送出報名', 'Submit'],
+  submitting: ['送出中…', 'Submitting…'],
+  closedTitle: ['報名已截止', 'Registration closed'],
+  closedBody: name => [`「${name}」已截止報名，如有疑問請聯絡福委會。`,
+    `Registration for "${name}" has closed. Please contact the Welfare Committee if you have any questions.`],
+  cannotRegister: ['無法報名', 'Unable to register'],
+  registered: ['✅ 報名成功！', 'You are registered!'],
+  reopenHint: ['之後可隨時從官方 LINE 選單「我的報到碼」再次開啟。',
+    'You can open this again anytime from "My check-in codes" in the official LINE menu.'],
+  qrLabel: id => [`報到 QR Code，編號 ${id}`, `Check-in QR code, number ${id}`],
+  checkedIn: ['已完成報到', 'Checked in'],
+  showQrHint: ['報到時請將螢幕亮度調高，出示此 QR Code 給工作人員掃描。',
+    'At check-in, turn up your screen brightness and show this QR code to the staff.'],
+  pastDeadline: ['已過報名截止時間，如需取消請聯絡福委會。',
+    'The deadline has passed. To cancel, please contact the Welfare Committee.'],
+  cancel: ['取消報名', 'Cancel registration'],
+  cancelling: ['取消中…', 'Cancelling…'],
+  cancelConfirm: name => [`確定要取消「${name}」的報名嗎？\n取消後此 QR Code 會失效；截止前仍可重新報名。`,
+    `Cancel your registration for "${name}"?\nThis QR code will stop working. You can register again before the deadline.`],
+  cancelled: ['已取消報名', 'Your registration has been cancelled.'],
+  cancelFailed: ['取消失敗，請稍後再試', 'Could not cancel. Please try again later.'],
+  myTickets: ['我的報到碼', 'My check-in codes'],
+  noTickets: ['目前沒有報名中的活動', 'You have no active registrations'],
+  noTicketsBody: ['收到福委會的活動通知後，點通知中的報名連結即可報名。',
+    'When you receive an event notice from the Welfare Committee, tap the registration link in it.'],
+  cannotOpen: ['無法開啟頁面', 'Unable to open this page'],
+  cannotOpenBody: ['請從福委會官方 LINE 的連結開啟此頁面。',
+    "Please open this page from the link in the Welfare Committee's official LINE account."],
+  loadFailed: ['頁面載入失敗', 'Failed to load the page'],
+  loadFailedBody: ['請確認網路連線後重新開啟。', 'Please check your internet connection and open this page again.'],
+};
+
+// 後端回傳的錯誤訊息是中文；英文依錯誤代碼對照（CANCEL_ 開頭的是取消報名時用的）
+const EN_ERRORS = {
+  NETWORK: 'Network error. Please check your connection and try again.',
+  SERVER: 'The system is busy. Please try again later.',
+  BUSY: 'Many people are registering right now. Please try again in a moment.',
+  AUTH: 'Your login has expired. Please close this page and open it again.',
+  INVALID: 'Please fill in all fields.',
+  ROSTER: 'Your employee ID, name, or department does not match the employee list. Please check and try again.',
+  NO_EVENT: 'This event was not found or is not open for registration yet.',
+  CLOSED: 'Registration has closed.',
+  CANCEL_CLOSED: 'The registration deadline has passed, so it cannot be cancelled. Please contact the Welfare Committee.',
+  DUP_USER: 'You have already registered for this event.',
+  DUP_EMP: 'This employee ID has already been registered. Please contact the Welfare Committee if you have any questions.',
+  NOT_FOUND: 'Your registration could not be found.',
+  CHECKED_IN: 'You have already checked in, so the registration cannot be cancelled.',
+  BAD_REQUEST: 'Unknown request.',
+};
+
+function errText(err, context, fallback) {
+  const t = fallback || T.busy;
+  return [err.message || t[0], EN_ERRORS[(context || '') + err.code] || EN_ERRORS[err.code] || t[1]];
+}
+
 const MEALS = [
-  { value: '葷', label: '葷食' },
-  { value: '素', label: '素食' },
+  { value: '葷', label: ['葷食', 'Non-vegetarian'] },
+  { value: '素', label: ['素食', 'Vegetarian'] },
 ];
 const RETRYABLE = ['NETWORK', 'SERVER', 'BUSY'];
 
@@ -173,21 +259,30 @@ function render(...nodes) {
   window.scrollTo(0, 0);
 }
 
-function showLoading(text) {
-  render(h('div', { class: 'loading center' }, h('div', { class: 'spinner' }), h('p', { class: 'muted' }, text || '載入中…')));
+// 中英並列：t 是 [中文, 英文]；block 為 true 時英文換行顯示
+function bi(t, block) {
+  return [t[0], h('span', { class: `en ${block ? 'en-block' : 'en-inline'}`, lang: 'en' }, t[1])];
+}
+
+// placeholder、確認視窗等只能放純文字的地方
+function plain(t, sep) {
+  return t[0] + (sep || ' / ') + t[1];
+}
+
+function showLoading() {
+  render(h('div', { class: 'loading center' }, h('div', { class: 'spinner' }), h('p', { class: 'muted' }, bi(T.loading))));
 }
 
 function showMessage(title, body, action) {
   render(h('section', { class: 'card center message' },
-    h('h2', null, title),
-    body && h('p', { class: 'muted' }, body),
-    action && h('button', { class: 'btn', onclick: action.onClick }, action.label)));
+    h('h2', null, bi(title, true)),
+    body && h('p', { class: 'muted' }, bi(body, true)),
+    action && h('button', { class: 'btn', onclick: action.onClick }, bi(action.label, true))));
 }
 
 function showError(err, retry) {
   const canRetry = retry && RETRYABLE.includes(err.code);
-  showMessage('無法完成', err.message || '系統忙碌中，請稍後再試',
-    canRetry && { label: '重新整理', onClick: retry });
+  showMessage(T.failed, errText(err), canRetry && { label: T.reload, onClick: retry });
 }
 
 // ===== 呼叫後端 =====
@@ -247,16 +342,20 @@ function sessionSet(k, v) {
 // ===== 共用元件 =====
 function eventHeader(ev) {
   return h('header', { class: 'event' },
-    h('p', { class: 'eyebrow' }, '福委會活動'),
+    h('p', { class: 'eyebrow' }, bi(T.eyebrow)),
     h('h1', null, ev.name),
     h('dl', { class: 'meta' },
-      ev.date && [h('dt', null, '日期'), h('dd', null, ev.date)],
-      ev.place && [h('dt', null, '地點'), h('dd', null, ev.place)],
-      ev.deadline && [h('dt', null, '報名截止'), h('dd', null, ev.deadline)]));
+      ev.date && [h('dt', null, bi(T.date, true)), h('dd', null, ev.date)],
+      ev.place && [h('dt', null, bi(T.place, true)), h('dd', null, ev.place)],
+      ev.deadline && [h('dt', null, bi(T.deadline, true)), h('dd', null, ev.deadline)]));
 }
 
 function field(label, control) {
-  return h('label', { class: 'field' }, h('span', { class: 'label' }, label), control);
+  return h('label', { class: 'field' }, h('span', { class: 'label' }, bi(label)), control);
+}
+
+function mealLabel(value) {
+  return (MEALS.find(m => m.value === value) || MEALS[0]).label;
 }
 
 // ===== 活動報名頁 =====
@@ -266,7 +365,7 @@ async function loadEvent(eventId) {
     const d = await api('init', { eventId });
     if (d.registration) return renderTicketPage(d.event, d.registration, false);
     if (d.event.canRegister) return renderForm(d.event, d.units);
-    showMessage('報名已截止', `「${d.event.name}」已截止報名，如有疑問請聯絡福委會。`);
+    showMessage(T.closedTitle, T.closedBody(d.event.name));
   } catch (err) {
     showError(err, () => loadEvent(eventId));
   }
@@ -276,10 +375,10 @@ function renderForm(ev, units) {
   let meal = '';
 
   const unitSel = h('select', { name: 'unit' },
-    h('option', { value: '' }, '請選擇單位'),
+    h('option', { value: '' }, plain(T.selectUnit)),
     units.map(u => h('option', { value: u }, u)));
-  const empInput = h('input', { name: 'empId', autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false', placeholder: '請輸入工號' });
-  const nameInput = h('input', { name: 'name', autocomplete: 'name', placeholder: '請輸入姓名（全名）' });
+  const empInput = h('input', { name: 'empId', autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false', placeholder: plain(T.empIdHint) });
+  const nameInput = h('input', { name: 'name', autocomplete: 'name', placeholder: plain(T.nameHint) });
   const mealBtns = MEALS.map(m => h('button', {
     type: 'button',
     class: 'choice',
@@ -288,13 +387,13 @@ function renderForm(ev, units) {
       meal = m.value;
       mealBtns.forEach((b, i) => b.setAttribute('aria-pressed', String(MEALS[i].value === meal)));
     },
-  }, m.label));
+  }, bi(m.label, true)));
 
   const errBox = h('p', { class: 'error', role: 'alert', hidden: true });
-  const submit = h('button', { type: 'submit', class: 'btn' }, '送出報名');
+  const submit = h('button', { type: 'submit', class: 'btn' }, bi(T.submit, true));
 
-  const showFormError = msg => {
-    errBox.textContent = msg;
+  const showFormError = t => {
+    errBox.replaceChildren(...bi(t, true));
     errBox.hidden = false;
     errBox.scrollIntoView({ block: 'center', behavior: 'smooth' });
   };
@@ -302,36 +401,36 @@ function renderForm(ev, units) {
   const onSubmit = async e => {
     e.preventDefault();
     const data = { unit: unitSel.value, empId: empInput.value.trim(), name: nameInput.value.trim(), meal };
-    const missing = !data.unit ? '請選擇單位'
-      : !data.empId ? '請輸入工號'
-      : !data.name ? '請輸入姓名'
-      : !data.meal ? '請選擇葷食或素食'
-      : '';
+    const missing = !data.unit ? T.needUnit
+      : !data.empId ? T.needEmpId
+      : !data.name ? T.needName
+      : !data.meal ? T.needMeal
+      : null;
     if (missing) return showFormError(missing);
 
     errBox.hidden = true;
     submit.disabled = true;
-    submit.textContent = '送出中…';
+    submit.replaceChildren(...bi(T.submitting, true));
     try {
       const d = await api('register', Object.assign({ eventId: ev.id }, data));
       renderTicketPage(d.event, d.registration, true);
     } catch (err) {
       if (err.code === 'DUP_USER') return loadEvent(ev.id);
-      if (err.code === 'CLOSED' || err.code === 'NO_EVENT') return showMessage('無法報名', err.message);
-      showFormError(err.message || '系統忙碌中，請稍後再試');
+      if (err.code === 'CLOSED' || err.code === 'NO_EVENT') return showMessage(T.cannotRegister, errText(err));
+      showFormError(errText(err));
       submit.disabled = false;
-      submit.textContent = '送出報名';
+      submit.replaceChildren(...bi(T.submit, true));
     }
   };
 
   render(h('form', { class: 'card', novalidate: true, onsubmit: onSubmit },
     eventHeader(ev),
     h('hr', { class: 'divider' }),
-    field('單位', unitSel),
-    field('工號', empInput),
-    field('姓名', nameInput),
+    field(T.unit, unitSel),
+    field(T.empId, empInput),
+    field(T.name, nameInput),
     h('div', { class: 'field' },
-      h('span', { class: 'label', id: 'meal-label' }, '餐點'),
+      h('span', { class: 'label', id: 'meal-label' }, bi(T.meal)),
       h('div', { class: 'choices', role: 'group', 'aria-labelledby': 'meal-label' }, mealBtns)),
     errBox,
     submit));
@@ -340,20 +439,20 @@ function renderForm(ev, units) {
 // ===== 報到碼 =====
 function renderTicketPage(ev, reg, justRegistered) {
   render(
-    justRegistered && h('div', { class: 'banner', role: 'status' }, '✅ 報名成功！'),
+    justRegistered && h('div', { class: 'banner', role: 'status' }, bi(T.registered, true)),
     ticketCard(ev, reg, () => loadEvent(ev.id)),
-    h('p', { class: 'hint center' }, '之後可隨時從官方 LINE 選單「我的報到碼」再次開啟。'));
+    h('p', { class: 'hint center' }, bi(T.reopenHint, true)));
 }
 
 function ticketCard(ev, reg, afterCancel) {
-  const qrBox = h('div', { class: 'qr', role: 'img', 'aria-label': `報到 QR Code，編號 ${reg.ticketId}` });
+  const qrBox = h('div', { class: 'qr', role: 'img', 'aria-label': plain(T.qrLabel(reg.ticketId)) });
   new QRCode(qrBox, { text: reg.ticketId, width: 440, height: 440, correctLevel: QRCode.CorrectLevel.M });
 
   let footer = null;
   if (!reg.checkedIn && ev.canCancel) {
-    footer = h('button', { class: 'btn btn-ghost', onclick: e => cancelRegistration(ev, e.currentTarget, afterCancel) }, '取消報名');
+    footer = h('button', { class: 'btn btn-ghost', onclick: e => cancelRegistration(ev, e.currentTarget, afterCancel) }, bi(T.cancel, true));
   } else if (!reg.checkedIn) {
-    footer = h('p', { class: 'hint' }, '已過報名截止時間，如需取消請聯絡福委會。');
+    footer = h('p', { class: 'hint' }, bi(T.pastDeadline, true));
   }
 
   return h('section', { class: 'card' },
@@ -361,29 +460,29 @@ function ticketCard(ev, reg, afterCancel) {
     h('div', { class: 'qr-wrap' },
       qrBox,
       h('p', { class: 'ticket-id' }, reg.ticketId),
-      reg.checkedIn && h('span', { class: 'badge' }, '已完成報到')),
+      reg.checkedIn && h('span', { class: 'badge' }, bi(T.checkedIn))),
     h('hr', { class: 'divider' }),
     h('dl', { class: 'meta' },
-      h('dt', null, '姓名'), h('dd', null, reg.name),
-      h('dt', null, '單位'), h('dd', null, reg.unit),
-      h('dt', null, '工號'), h('dd', null, reg.empId),
-      h('dt', null, '餐點'), h('dd', null, reg.meal === '素' ? '素食' : '葷食')),
-    !reg.checkedIn && h('p', { class: 'hint' }, '報到時請將螢幕亮度調高，出示此 QR Code 給工作人員掃描。'),
+      h('dt', null, bi(T.name, true)), h('dd', null, reg.name),
+      h('dt', null, bi(T.unit, true)), h('dd', null, reg.unit),
+      h('dt', null, bi(T.empId, true)), h('dd', null, reg.empId),
+      h('dt', null, bi(T.meal, true)), h('dd', null, bi(mealLabel(reg.meal)))),
+    !reg.checkedIn && h('p', { class: 'hint' }, bi(T.showQrHint, true)),
     footer);
 }
 
 async function cancelRegistration(ev, btn, afterCancel) {
-  if (!confirm(`確定要取消「${ev.name}」的報名嗎？\n取消後此 QR Code 會失效；截止前仍可重新報名。`)) return;
+  if (!confirm(plain(T.cancelConfirm(ev.name), '\n\n'))) return;
   btn.disabled = true;
-  btn.textContent = '取消中…';
+  btn.replaceChildren(...bi(T.cancelling, true));
   try {
     await api('cancel', { eventId: ev.id });
-    alert('已取消報名');
+    alert(plain(T.cancelled, '\n'));
     afterCancel();
   } catch (err) {
-    alert(err.message || '取消失敗，請稍後再試');
+    alert(plain(errText(err, 'CANCEL_', T.cancelFailed), '\n'));
     btn.disabled = false;
-    btn.textContent = '取消報名';
+    btn.replaceChildren(...bi(T.cancel, true));
   }
 }
 
@@ -393,10 +492,10 @@ async function loadTickets() {
   try {
     const d = await api('tickets');
     if (!d.tickets.length) {
-      return showMessage('目前沒有報名中的活動', '收到福委會的活動通知後，點通知中的報名連結即可報名。');
+      return showMessage(T.noTickets, T.noTicketsBody);
     }
     render(
-      h('h1', { class: 'page-title' }, '我的報到碼'),
+      h('h1', { class: 'page-title' }, bi(T.myTickets, true)),
       d.tickets.map(t => ticketCard(t.event, t.registration, loadTickets)));
   } catch (err) {
     showError(err, loadTickets);
@@ -409,7 +508,7 @@ async function main() {
   try {
     await liff.init({ liffId: CONFIG.LIFF_ID });
   } catch (e) {
-    return showMessage('無法開啟頁面', '請從福委會官方 LINE 的連結開啟此頁面。');
+    return showMessage(T.cannotOpen, T.cannotOpenBody);
   }
   // 從 liff.line.me 開啟時，LIFF 會再轉址一次並帶上真正的網址參數
   if (params.has('liff.state')) return;
@@ -423,7 +522,7 @@ async function main() {
 }
 
 if (typeof liff === 'undefined' || typeof QRCode === 'undefined') {
-  showMessage('頁面載入失敗', '請確認網路連線後重新開啟。');
+  showMessage(T.loadFailed, T.loadFailedBody);
 } else {
   main();
 }
